@@ -19,14 +19,44 @@ import {
   Cell
 } from "recharts";
 
+interface Student {
+  id: string;
+  name: string;
+  gender: string;
+  class: string;
+  enrollmentDate: string;
+}
+
+interface ClassInfo {
+  id: string;
+  name: string;
+  teacher: string;
+  totalStudents: number;
+}
+
+interface Result {
+  id: string;
+  studentId: string;
+  class: string;
+  subject: string;
+  marks: number;
+  grade: string;
+  term: string;
+}
+
+interface StudentResultsData {
+  student: Student;
+  termResults: Record<string, Result[]>;
+}
+
 const Reports = () => {
-  const [students, setStudents] = useState<any[]>([]);
-  const [classes, setClasses] = useState<any[]>([]);
-  const [results, setResults] = useState<any[]>([]);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [classes, setClasses] = useState<ClassInfo[]>([]);
+  const [results, setResults] = useState<Result[]>([]);
   const [selectedClass, setSelectedClass] = useState("all");
   const [selectedStudent, setSelectedStudent] = useState("all");
-  const [selectedSubject, setSelectedSubject] = useState("all");
-  const [selectedTerm, setSelectedTerm] = useState("all");
+  const [selectedSubject, setSelectedSubject] = useState("All Subjects");
+  const [selectedTerm, setSelectedTerm] = useState("All Terms");
   const [reportType, setReportType] = useState("student");
   
   const { toast } = useToast();
@@ -71,7 +101,13 @@ const Reports = () => {
     const classResults = results.filter(result => result.class === selectedClass);
     
     // Group by subject
-    const subjectPerformance: any = {};
+    const subjectPerformance: Record<string, {
+      subject: string;
+      average: number;
+      total: number;
+      count: number;
+    }> = {};
+    
     classResults.forEach(result => {
       if (!subjectPerformance[result.subject]) {
         subjectPerformance[result.subject] = {
@@ -86,7 +122,7 @@ const Reports = () => {
     });
     
     // Calculate averages
-    return Object.values(subjectPerformance).map((data: any) => ({
+    return Object.values(subjectPerformance).map(data => ({
       ...data,
       average: data.total / data.count
     }));
@@ -96,7 +132,7 @@ const Reports = () => {
   const gradeDistributionData = React.useMemo(() => {
     if (filteredResults.length === 0) return [];
     
-    const gradeCounts: any = {
+    const gradeCounts: Record<string, { name: string; value: number }> = {
       "A+": { name: "A+", value: 0 },
       "A": { name: "A", value: 0 },
       "B": { name: "B", value: 0 },
@@ -111,25 +147,25 @@ const Reports = () => {
       }
     });
     
-    return Object.values(gradeCounts).filter((grade: any) => grade.value > 0);
+    return Object.values(gradeCounts).filter(grade => grade.value > 0);
   }, [filteredResults]);
   
   // Pie chart colors
   const GRADE_COLORS = ["#22c55e", "#84cc16", "#3b82f6", "#eab308", "#f97316", "#ef4444"];
   
   // Generate student report card
-  const studentResultsData = React.useMemo(() => {
-    if (selectedStudent === "all") return [];
+  const studentResultsData = React.useMemo((): StudentResultsData | null => {
+    if (selectedStudent === "all") return null;
     
     // Get student information
     const student = students.find(s => s.id === selectedStudent);
-    if (!student) return [];
+    if (!student) return null;
     
     // Get all results for this student
     const studentResults = results.filter(result => result.studentId === selectedStudent);
     
     // Group by subject
-    const termResults = studentResults.reduce((acc: any, result) => {
+    const termResults = studentResults.reduce((acc: Record<string, Result[]>, result) => {
       if (!acc[result.term]) {
         acc[result.term] = [];
       }
@@ -258,28 +294,26 @@ const Reports = () => {
           </div>
           
           {/* Student Report Card */}
-          {reportType === "student" && selectedStudent !== "all" && (
+          {reportType === "student" && studentResultsData && (
             <div className="mt-6 p-4 border rounded-md bg-white print:shadow-none" id="printable-report">
               <div className="text-center mb-6 border-b pb-4">
                 <h2 className="text-2xl font-bold">Student Report Card</h2>
                 <p className="text-gray-500">Academic Progress Report</p>
               </div>
               
-              {studentResultsData.student && (
-                <div className="mb-6 grid grid-cols-2 gap-4">
-                  <div>
-                    <p><strong>Student Name:</strong> {studentResultsData.student.name}</p>
-                    <p><strong>Student ID:</strong> {studentResultsData.student.id}</p>
-                  </div>
-                  <div>
-                    <p><strong>Class:</strong> {studentResultsData.student.class}</p>
-                    <p><strong>Academic Year:</strong> 2023-2024</p>
-                  </div>
+              <div className="mb-6 grid grid-cols-2 gap-4">
+                <div>
+                  <p><strong>Student Name:</strong> {studentResultsData.student.name}</p>
+                  <p><strong>Student ID:</strong> {studentResultsData.student.id}</p>
                 </div>
-              )}
+                <div>
+                  <p><strong>Class:</strong> {studentResultsData.student.class}</p>
+                  <p><strong>Academic Year:</strong> 2023-2024</p>
+                </div>
+              </div>
               
               {/* Results by Term */}
-              {Object.entries(studentResultsData.termResults || {}).map(([term, termResults]: [string, any]) => (
+              {Object.entries(studentResultsData.termResults || {}).map(([term, termResults]: [string, Result[]]) => (
                 <div key={term} className="mb-8">
                   <h3 className="text-xl font-bold mb-4 border-b pb-2">{term} Results</h3>
                   
@@ -294,7 +328,7 @@ const Reports = () => {
                         </tr>
                       </thead>
                       <tbody>
-                        {termResults.map((result: any, idx: number) => (
+                        {termResults.map((result: Result, idx: number) => (
                           <tr key={idx} className="border-b">
                             <td className="p-2 border">{result.subject}</td>
                             <td className="p-2 border">{result.marks}</td>
@@ -324,7 +358,7 @@ const Reports = () => {
                         <tr className="bg-gray-50 font-medium">
                           <td className="p-2 border">Average</td>
                           <td className="p-2 border">
-                            {(termResults.reduce((sum: number, result: any) => sum + result.marks, 0) / termResults.length).toFixed(2)}
+                            {(termResults.reduce((sum: number, result: Result) => sum + result.marks, 0) / termResults.length).toFixed(2)}
                           </td>
                           <td className="p-2 border" colSpan={2}>
                             {/* No grade here */}
