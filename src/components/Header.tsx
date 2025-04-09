@@ -2,11 +2,14 @@
 import React from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { LogOut, UserCircle } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Header: React.FC = () => {
   const { toast } = useToast();
+  const { user, logout } = useAuth();
   
   const handleLogout = () => {
+    logout();
     toast({
       title: "Logged out successfully",
       description: "You have been logged out of the system."
@@ -28,7 +31,7 @@ const Header: React.FC = () => {
         <div className="flex items-center gap-4">
           <div className="hidden md:flex items-center gap-2">
             <UserCircle className="h-5 w-5 text-gray-600" />
-            <span className="text-gray-800">Admin User</span>
+            <span className="text-gray-800">{user?.username || 'Admin User'}</span>
           </div>
           <button 
             onClick={handleLogout}
